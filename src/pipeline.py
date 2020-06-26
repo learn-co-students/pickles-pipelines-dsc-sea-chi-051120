@@ -7,37 +7,40 @@ class ValidateAndRenameColumns(BaseEstimator):
         self.needed_columns = ['age', 'workclass', 'education', 'education_num',
            'marital_status', 'occupation', 'relationship',
            'capital_gain', 'capital_loss', 'hours_per_week', 'native_country']
+        self.needed_types = {'age': 'int',
+                             'workclass': 'str',
+                             'education': 'str',
+                             'education_num': 'str',
+                             'marital_status': 'str',
+                             'occupation': 'str',
+                             'relationship': 'str',
+                             'capital_gain': 'int',
+                             'capital_loss': 'int',
+                             'hours_per_week': 'int',
+                             'native_country': 'str'}
             
     def fit(self, X, y=None):
-        return self
+         self._validate(X)
+         return self
     
     def transform(self, X):
-        self.proper_columns = False
         self._validate(X)
-        if not self.proper_type:
-            raise TypeError('Data must be formatted as a Dictionary or a pandas DataFrame')
-        X = self._reformat(X)
-        self._check_columns(X)
-        if not self.proper_columns:
-            raise ValueError("The following features are missing. {}".format(self.missing_keys))
-        
         if self.type == dict:
-            X = pd.DataFrame([X], index = range(len([X])))
-        data = X.copy()
-        
+            data = pd.DataFrame([X])
+        else:
+            data = X.copy()
         return data[self.needed_columns]
     
     def _validate(self, X):
-
-        if type(X) == dict:
-            self.type = dict
-            self.proper_type = True
-                
-        elif type(X) == pd.core.frame.DataFrame:
-            self.type = pd.core.frame.DataFrame
-            self.proper_type = True
-        else:
-            self.proper_type = False    
+        self.proper_columns = False
+        self._check_object_type(X)
+        self._reformat(X)
+        self._check_columns(X)
+        self._check_column_types(X)
+        if not self.proper_type:
+            raise TypeError('Data must be formatted as a Dictionary or a pandas DataFrame')
+        if not self.proper_columns:
+            raise ValueError("The following features are missing. {}".format(self.missing_keys))   
                 
     def _reformat(self, X):
         change_text = lambda x: x.lower().strip().replace(' ', '_').replace('-', '_')
@@ -47,8 +50,7 @@ class ValidateAndRenameColumns(BaseEstimator):
                 X[new_key] = X.pop(key)
         else:
             X.columns = [change_text(column) for column in X.columns]
-            
-        return X
+
     
     def _check_columns(self, X):   
         if self.type == dict:
@@ -65,6 +67,29 @@ class ValidateAndRenameColumns(BaseEstimator):
             else:
                 self.missing_keys = [column for column in self.needed_columns if column not in X.columns]
         return
+    
+    def _check_column_types(self, X):
+        for column in self.needed_columns:
+            needed_type = self.needed_types[column]
+            if self.type == dict:
+                if needed_type == 'str':
+                    X[column] = str(X[column])
+                else:
+                    X[column] == int(X[column])
+            else:
+                X[column] = X[column].astype(needed_type)
+                
+    def _check_object_type(self, X):
+        if type(X) == dict:
+            self.type = dict
+            self.proper_type = True
+                
+        elif type(X) == pd.core.frame.DataFrame:
+            self.type = pd.core.frame.DataFrame
+            self.proper_type = True
+        else:
+            self.proper_type = False
+
 
 class HotEncodeMerge():
     def __init__(self):
